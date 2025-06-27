@@ -1,0 +1,9 @@
+{
+    "name": "extended-exile",
+    "version_number": "1.0.0",
+    "website_url": "https://github.com/luanemanuel/extended-exile/",
+    "description": "Unlocks the max player cap to play Ghost Exile with more than 4 friends!",
+    "dependencies": [
+        "BepInEx-BepInExPack-5.4.2100"
+    ]
+}
