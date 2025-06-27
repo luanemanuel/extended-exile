@@ -1,0 +1,32 @@
+﻿# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build
+/bin/
+/obj/
+*.tmp
+*.log
+
+# NuGet
+*.nupkg
+packages/
+
+# Rider coverage
+*.dotCover
+coverage.*
+
+# BepInEx plugin output (caso gere pastas no projeto)
+/BepInEx/
+/*_data/
+
+# Respostas de testes e caches
+TestResults/
+*.cache
