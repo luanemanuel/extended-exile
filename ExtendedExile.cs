@@ -1,9 +1,10 @@
 ﻿using System.Collections.Generic;
-using BepInEx;
-using HarmonyLib;
 using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
+using BepInEx;
+using HarmonyLib;
+using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
 
@@ -48,25 +49,69 @@ public class Config(string path)
     }
 }
 
+// 1) Transpiler no SteamNetworkManager.Start
 [HarmonyPatch]
 public class PatchSteamNetworkManagerStart
 {
     static MethodBase TargetMethod()
     {
+        // pega SteamNetworkManager.Start()
         var type = AccessTools.TypeByName("SteamNetworkManager");
         return AccessTools.Method(type, "Start");
     }
 
     static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
-        foreach (var code in instructions)
+        // preparos para carregar nossa Config
+        var cfgField = AccessTools.Field(typeof(ExtendedExilePlugin), nameof(ExtendedExilePlugin.Config));
+        var getter = AccessTools.PropertyGetter(typeof(Config), nameof(Config.MaxPlayers));
+
+        foreach (var ci in instructions)
         {
-            if (code.opcode == OpCodes.Ldc_I4_4)
-                yield return new CodeInstruction(OpCodes.Call,
-                    AccessTools.PropertyGetter(typeof(Config),
-                        nameof(Config.MaxPlayers)));
+            if (ci.opcode == OpCodes.Ldc_I4_4)
+            {
+                // substitui o literal 4 por:
+                //   ldsfld ExtendedExilePlugin::Config
+                //   callvirt instance int32 Config::get_MaxPlayers()
+                yield return new CodeInstruction(OpCodes.Ldsfld, cfgField);
+                yield return new CodeInstruction(OpCodes.Callvirt, getter);
+            }
             else
-                yield return code;
+            {
+                yield return ci;
+            }
         }
+    }
+}
+
+// 2) Prefix em PhotonNetwork.CreateRoom
+[HarmonyPatch(typeof(PhotonNetwork), nameof(PhotonNetwork.CreateRoom),
+    new[] { typeof(string), typeof(RoomOptions), typeof(TypedLobby), typeof(string[]) })]
+public class PatchCreateRoom
+{
+    static void Prefix(
+        string roomName,
+        ref RoomOptions roomOptions,
+        TypedLobby typedLobby,
+        string[] expectedUsers)
+    {
+        roomOptions.MaxPlayers = ExtendedExilePlugin.Config.MaxPlayers;
+        Debug.Log($"[ExtendedExile] CreateRoom patched ({roomName}): MaxPlayers = {roomOptions.MaxPlayers}");
+    }
+}
+
+// 3) Prefix em PhotonNetwork.JoinOrCreateRoom (caso o jogo use)
+[HarmonyPatch(typeof(PhotonNetwork), nameof(PhotonNetwork.JoinOrCreateRoom),
+    new[] { typeof(string), typeof(RoomOptions), typeof(TypedLobby), typeof(string[]) })]
+public class PatchJoinOrCreateRoom
+{
+    static void Prefix(
+        string roomName,
+        ref RoomOptions roomOptions,
+        TypedLobby typedLobby,
+        string[] expectedUsers)
+    {
+        roomOptions.MaxPlayers = ExtendedExilePlugin.Config.MaxPlayers;
+        Debug.Log($"[ExtendedExile] JoinOrCreateRoom patched ({roomName}): MaxPlayers = {roomOptions.MaxPlayers}");
     }
 }
