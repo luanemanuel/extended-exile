@@ -7,6 +7,7 @@ using HarmonyLib;
 using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
+using TMPro;
 
 namespace ExtendedExile;
 
@@ -113,5 +114,28 @@ public class PatchJoinOrCreateRoom
     {
         roomOptions.MaxPlayers = ExtendedExilePlugin.Config.MaxPlayers;
         Debug.Log($"[ExtendedExile] JoinOrCreateRoom patched ({roomName}): MaxPlayers = {roomOptions.MaxPlayers}");
+    }
+}
+
+// 4) Patch TMP_Text.text setter
+[HarmonyPatch(typeof(TMP_Text), nameof(TMP_Text.text), MethodType.Setter)]
+public class PatchTMPProText
+{
+    static void Prefix(ref string value)
+    {
+        if (string.IsNullOrEmpty(value) || !value.StartsWith("Lobby ")) 
+            return;
+
+        var parts = value.Split(' ');
+        if (parts.Length < 2) 
+            return;
+
+        var nums = parts[1].Split('/');
+        if (nums.Length != 2 || !int.TryParse(nums[0], out var current)) 
+            return;
+
+        var max = ExtendedExilePlugin.Config.MaxPlayers;
+        value = $"Lobby {current}/{max}";
+        Debug.Log($"[ExtendedExile] TMPPro text patched: {value}");
     }
 }
