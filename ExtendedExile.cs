@@ -123,18 +123,19 @@ public class PatchTMPProText
 {
     static void Prefix(ref string value)
     {
-        if (string.IsNullOrEmpty(value) || !value.StartsWith("Lobby ")) 
+        if (string.IsNullOrEmpty(value) || !value.StartsWith("Lobby "))
             return;
 
         var parts = value.Split(' ');
-        if (parts.Length < 2) 
+        if (parts.Length < 2)
             return;
 
         var nums = parts[1].Split('/');
-        if (nums.Length != 2 || !int.TryParse(nums[0], out var current)) 
+        if (nums.Length != 2 || !int.TryParse(nums[0], out var current))
             return;
 
-        var max = ExtendedExilePlugin.Config.MaxPlayers;
+        var room = PhotonNetwork.CurrentRoom;
+        var max = room?.MaxPlayers ?? 4;
         value = $"Lobby {current}/{max}";
         Debug.Log($"[ExtendedExile] TMPPro text patched: {value}");
     }
