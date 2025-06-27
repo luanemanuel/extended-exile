@@ -47,4 +47,8 @@
             <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\GhostExile\GhostExile_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
         </Reference>
     </ItemGroup>
+
+    <ItemGroup>
+      <Content Include=".gitignore" />
+    </ItemGroup>
 </Project>
