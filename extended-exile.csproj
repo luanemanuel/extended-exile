@@ -47,8 +47,14 @@
     <Reference Include="UnityEngine.UI">
       <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\GhostExile\GhostExile_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\GhostExile\GhostExile_Data\Managed\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.TextMeshPro">
       <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\GhostExile\GhostExile_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+    </Reference>
+    <Reference Include="Photon3Unity3D">
+      <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\GhostExile\GhostExile_Data\Managed\Photon3Unity3D.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>
