@@ -8,6 +8,8 @@ using Photon.Pun;
 using Photon.Realtime;
 using UnityEngine;
 using TMPro;
+using System;
+using System.Linq;
 
 namespace ExtendedExile;
 
@@ -138,5 +140,132 @@ public class PatchTMPProText
         var max = room?.MaxPlayers ?? 4;
         value = $"Lobby {current}/{max}";
         Debug.Log($"[ExtendedExile] TMPPro text patched: {value}");
+    }
+}
+
+// 5) Postfix no UI_Lobby_State.Start para redimensionar readyStates
+[HarmonyPatch(typeof(UI_Lobby_State), "Awake")]
+public static class PatchReadyArrayResize
+{
+    static void Postfix(UI_Lobby_State __instance)
+    {
+        var field = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
+        var array = (int[])field.GetValue(__instance);
+
+        if (array.Length < ExtendedExilePlugin.Config.MaxPlayers)
+        {
+            var newArray = new int[ExtendedExilePlugin.Config.MaxPlayers];
+            Array.Copy(array, newArray, array.Length);
+            field.SetValue(__instance, newArray);
+            Debug.Log($"[ExtendedExile] 🔁 Redimensionou readyStates: {array.Length} -> {newArray.Length}");
+        }
+    }
+}
+
+// 6) Prefix no UI_Lobby_State.GetReadyPlayer para evitar IndexOutOfRangeException
+[HarmonyPatch(typeof(UI_Lobby_State), "GetReadyPlayer")]
+public static class PatchGetReadyPlayerSafe
+{
+    static bool Prefix(UI_Lobby_State __instance, int ƛƪƇůǀ, ref bool __result)
+    {
+        var field = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
+        var array = (int[])field.GetValue(__instance);
+
+        if (ƛƪƇůǀ >= 0 && ƛƪƇůǀ < array.Length)
+            __result = array[ƛƪƇůǀ] == 1;
+        else
+        {
+            __result = false;
+            Debug.LogWarning($"[ExtendedExile] ⚠️ Índice inválido em GetReadyPlayer({ƛƪƇůǀ})");
+        }
+
+        return false;
+    }
+}
+
+// 7) Patch no método Rpc_SyncReadysState para expandir o array de estados
+
+[HarmonyPatch]
+static class PatchSyncReadysStateExpand
+{
+    // Aponta corretamente para o RPC que recebe params object[]
+    static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(UI_Lobby_State),
+            "Rpc_SyncReadysState",
+            new[] { typeof(object[]) });
+
+    static bool Prefix(UI_Lobby_State __instance, object[] __args)
+    {
+        int maxPlayers = ExtendedExilePlugin.Config.MaxPlayers;
+        var expandedStates = new int[maxPlayers];
+
+        int toCopy = Math.Min(__args.Length, maxPlayers);
+        for (int i = 0; i < toCopy; i++)
+            expandedStates[i] = (int)__args[i];
+
+        var field = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
+        field.SetValue(__instance, expandedStates);
+
+        Debug.Log("[ExtendedExile] 📡 Estados de prontos sincronizados e expandidos.");
+
+        if (UI_Lobby_Ready.instance == null)
+            UI_Lobby_Ready.instance =
+                UnityEngine.Object.FindFirstObjectByType<UI_Lobby_Ready>();
+
+        UI_Lobby_Ready.instance?.UpdateLobbyPlayerList();
+
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(UI_Lobby_State), "SendReadyToggle")]
+public static class PatchSendReadyToggle
+{
+    static bool Prefix(UI_Lobby_State __instance)
+    {
+        // 1) atualiza localmente o array de estados
+        var fi = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
+        var states = (int[])fi.GetValue(__instance);
+        int idx = PhotonNetwork.LocalPlayer.ActorNumber - 1;
+        if (idx < 0 || idx >= states.Length)
+            return false;
+
+        states[idx] = states[idx] == 1 ? 0 : 1;
+        fi.SetValue(__instance, states);
+
+        // 2) faz o RPC para todo mundo com buffer
+        var pv = __instance.GetComponent<PhotonView>();
+        // envia todos os estados (ou só os 4 originais, conforme implementação original)
+        object[] payload = states.Cast<object>().ToArray();
+        pv.RPC("Rpc_SyncReadysState", RpcTarget.AllBuffered, payload);
+
+        // 3) atualiza a UI local
+        UI_Lobby_Ready.instance?.UpdateLobbyPlayerList();
+        return false; // impede o original
+    }
+}
+
+[HarmonyPatch(typeof(UI_Lobby_State), "AllReady")]
+public static class PatchAllReady
+{
+    static bool Prefix(UI_Lobby_State __instance, ref bool __result)
+    {
+        var field = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
+        var states = (int[])field.GetValue(__instance);
+        __result = states.All(s => s == 1);
+        return false;
+    }
+}
+
+[HarmonyPatch(typeof(UI_Lobby_State), "CanStartMission")]
+public static class PatchCanStartMission
+{
+    static bool Prefix(UI_Lobby_State __instance, ref bool __result)
+    {
+        var field = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
+        var states = (int[])field.GetValue(__instance);
+        int players = PhotonNetwork.CurrentRoom.PlayerCount;
+        __result = states.Take(players).All(s => s == 1);
+        return false;
     }
 }
