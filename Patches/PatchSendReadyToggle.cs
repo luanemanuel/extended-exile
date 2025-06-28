@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using ExitGames.Client.Photon;
 using HarmonyLib;
 using Photon.Pun;
@@ -14,7 +15,11 @@ namespace ExtendedExile.Patches
             var fi     = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
             var states = (int[])fi.GetValue(__instance);
             
-            var list = PhotonNetwork.PlayerList;
+            var list = PhotonNetwork.CurrentRoom.Players
+                .Values
+                .OrderBy(p => p.ActorNumber)
+                .ToArray();
+            
             int idx   = Array.IndexOf(list, PhotonNetwork.LocalPlayer);
             if (idx < 0) return false;
             
