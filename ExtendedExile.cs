@@ -1,8 +1,10 @@
 ﻿using System.IO;
 using BepInEx;
+using ExtendedExile.Patches;
 using HarmonyLib;
 using Photon.Pun;
 using ExtendedExile.Utils;
+using UnityEngine;
 
 namespace ExtendedExile
 {
@@ -23,11 +25,21 @@ namespace ExtendedExile
             Logger.LogInfo(
                 $"Extended Exile v{Info.Metadata.Version} loaded with MaxPlayers = {Config.MaxPlayers}"
             );
+            
+            // Register UI events
+            Debug.Log("[ExtendedExile] Registering UI events...");
+            RegisterUIEvents();
         }
         
         private void OnDestroy()
         {
             PhotonNetwork.NetworkingClient.EventReceived -= ReadyStateReceiver.Instance.OnEvent;
+        }
+        
+        private void RegisterUIEvents()
+        {
+            new GameObject("PatchPlayerListScroll").AddComponent<PatchPlayerListScroll>();
+            new GameObject("PatchPlayerStatusScroll").AddComponent<PatchPlayerStatusScroll>();
         }
     }
 }
