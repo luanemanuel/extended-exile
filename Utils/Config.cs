@@ -3,12 +3,9 @@ using UnityEngine;
 
 namespace ExtendedExile.Utils
 {
-    public class Config
+    public class Config(string path)
     {
-        private readonly string path;
         public int MaxPlayers { get; private set; } = 8;
-
-        public Config(string path) => this.path = path;
 
         public void Load()
         {
