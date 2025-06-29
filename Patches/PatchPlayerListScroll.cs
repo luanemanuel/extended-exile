@@ -7,6 +7,8 @@ namespace ExtendedExile.Patches
 {
     public class PatchPlayerListScroll : MonoBehaviour
     {
+        private string currentScene;
+
         void Awake()
         {
             DontDestroyOnLoad(gameObject);
@@ -20,61 +22,50 @@ namespace ExtendedExile.Patches
 
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
+            currentScene = scene.name;
+
             // Passa o nome da cena para a coroutine
-            StartCoroutine(SetupScroll(scene.name));
+            StartCoroutine(MonitorAndPatchList(scene.name));
         }
 
-        IEnumerator SetupScroll(string targetScene)
+        private IEnumerator MonitorAndPatchList(string targetScene)
         {
-            // espera um frame para a UI ser instanciada
+            // Pequeno delay inicial para a UI começar a aparecer
             yield return new WaitForEndOfFrame();
 
-            Debug.Log(
-                $"[ExtendedExile] Configurando PlayerList ScrollView em cena: {SceneManager.GetActiveScene().name}");
-
-            // encontra o container original
-
-            GameObject oldContainer = null;
-            var timer = 5f;
-            while (oldContainer == null && SceneManager.GetActiveScene().name == targetScene)
+            while (SceneManager.GetActiveScene().name == targetScene)
             {
-                timer += Time.deltaTime;
-                if (timer >= 5f)
-                {
-                    Debug.Log(
-                        $"[ExtendedExile] Tentando encontrar ListPlayers container: {oldContainer != null}"
-                    );
-                    timer = 0f; // reseta o timer
-                }
-
-                oldContainer = GameObject.Find(
+                // 1) Tenta achar o container
+                var oldContainer = GameObject.Find(
                     "NewMenuInGame(Clone)/Modal Windows/ListPlayer/ListPlayers"
                 );
-                yield return null;
+
+                if (oldContainer != null)
+                {
+                    // 2) Só aplica se ainda não houver o ScrollView
+                    bool alreadyPatched = oldContainer.transform
+                        .parent
+                        .Find("ListPlayersScrollView") != null;
+                    if (!alreadyPatched && oldContainer.transform.childCount > 0)
+                    {
+                        // dispara somente uma vez por reabertura
+                        SetupScrollFor(oldContainer);
+                        Debug.Log("[ExtendedExile] PlayerList ScrollView aplicada!");
+                    }
+                }
+
+                yield return null; // espera o próximo frame
             }
+        }
 
-            if (oldContainer == null) yield break;
-
-            // polling até ter ao menos um filho ou cena mudar
-            while (oldContainer.transform.childCount == 0 &&
-                   SceneManager.GetActiveScene().name == targetScene)
-            {
-                yield return null;
-            }
-
-            if (SceneManager.GetActiveScene().name != targetScene)
-            {
-                Debug.LogWarning("[ExtendedExile] Cena mudou antes de povoar ListPlayers, abortando.");
-                yield break;
-            }
-
+        private void SetupScrollFor(GameObject oldContainer)
+        {
             // pega referências
             var parent = oldContainer.transform.parent;
             var oldRect = oldContainer.GetComponent<RectTransform>();
             var oldImage = oldContainer.GetComponent<Image>();
 
             // CRIA O SCROLLVIEW ---------------------------------------------------
-
             var scrollGo = new GameObject("ListPlayersScrollView",
                 typeof(RectTransform),
                 typeof(ScrollRect),
@@ -90,7 +81,6 @@ namespace ExtendedExile.Patches
             newRect.anchoredPosition = oldRect.anchoredPosition;
             newRect.sizeDelta = oldRect.sizeDelta;
 
-            // copia fundo (se existir) ou deixa transparente
             var bgImg = scrollGo.GetComponent<Image>();
             if (oldImage != null)
             {
@@ -106,46 +96,14 @@ namespace ExtendedExile.Patches
             var scrollRect = scrollGo.GetComponent<ScrollRect>();
             scrollRect.vertical = true;
             scrollRect.horizontal = false;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.elasticity = 0.1f;
+            scrollRect.viewport = CreateViewport(scrollGo.transform, oldImage);
 
-            // VIEWPORT ------------------------------------------------------------
+            // reparenta o oldContainer dentro do viewport
+            oldContainer.transform.SetParent(scrollRect.viewport, false);
 
-            var viewportGo = new GameObject("Viewport",
-                typeof(RectTransform),
-                typeof(Image),
-                typeof(Mask)
-            );
-            viewportGo.transform.SetParent(scrollGo.transform, false);
-
-            var vpRect = viewportGo.GetComponent<RectTransform>();
-            vpRect.anchorMin = Vector2.zero;
-            vpRect.anchorMax = Vector2.one;
-            vpRect.anchoredPosition = Vector2.zero;
-            vpRect.sizeDelta = Vector2.zero;
-
-            var vpImg = viewportGo.GetComponent<Image>();
-            // reutiliza mesmo visual do oldImage (opcional)
-            if (oldImage != null)
-            {
-                vpImg.sprite = oldImage.sprite;
-                vpImg.color = oldImage.color;
-                vpImg.type = oldImage.type;
-            }
-            else
-            {
-                vpImg.enabled = false;
-            }
-
-            var vpMask = viewportGo.GetComponent<Mask>();
-            vpMask.showMaskGraphic = false;
-
-            scrollRect.viewport = vpRect;
-
-            // USA O PRÓPRIO oldContainer COMO CONTENT ----------------------------
-
-            // reparent do container original para dentro do viewport
-            oldContainer.transform.SetParent(vpRect, false);
-
-            // ajusta seu RectTransform para topo‐stretch
+            // ajusta RectTransform do conteúdo
             var contentRect = oldContainer.GetComponent<RectTransform>();
             contentRect.anchorMin = new Vector2(0, 1);
             contentRect.anchorMax = new Vector2(1, 1);
@@ -153,25 +111,52 @@ namespace ExtendedExile.Patches
             contentRect.anchoredPosition = Vector2.zero;
             contentRect.sizeDelta = Vector2.zero;
 
-            // adiciona ou obtém o layout para empilhar verticalmente
+            // layout & fitter
             var layout = oldContainer.GetComponent<VerticalLayoutGroup>()
                          ?? oldContainer.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 4;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
 
-            // adiciona ou obtém o auto‐size fitter
             var fitter = oldContainer.GetComponent<ContentSizeFitter>()
                          ?? oldContainer.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            // finalmente aponta o ScrollRect para esse content
             scrollRect.content = contentRect;
-
-            // força rebuild imediato (útil pra quando já houver itens)
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentRect);
+        }
 
-            Debug.Log("[ExtendedExile] PlayerList ScrollView configurada com sucesso!");
+        private RectTransform CreateViewport(Transform parent, Image oldImage)
+        {
+            var go = new GameObject("Viewport",
+                typeof(RectTransform),
+                typeof(Image),
+                typeof(Mask)
+            );
+            go.transform.SetParent(parent, false);
+
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = Vector2.zero;
+
+            var img = go.GetComponent<Image>();
+            if (oldImage != null)
+            {
+                img.sprite = oldImage.sprite;
+                img.color = oldImage.color;
+                img.type = oldImage.type;
+            }
+            else
+            {
+                img.enabled = false;
+            }
+
+            var mask = go.GetComponent<Mask>();
+            mask.showMaskGraphic = false;
+
+            return rt;
         }
     }
 }
