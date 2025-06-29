@@ -6,7 +6,7 @@ using ExtendedExile.Utils;
 
 namespace ExtendedExile
 {
-    [BepInPlugin("br.com.luanemanuel.extendedexile", "Extended Exile", "1.0.0")]
+    [BepInPlugin("br.com.luanemanuel.extendedexile", "Extended Exile", "1.2.0")]
     public class ExtendedExilePlugin : BaseUnityPlugin
     {
         internal new static Config Config { get; private set; }
