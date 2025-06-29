@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using UnityEngine;
 
-namespace ExtendedExile
+namespace ExtendedExile.Utils
 {
     public class Config
     {

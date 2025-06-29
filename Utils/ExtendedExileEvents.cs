@@ -1,4 +1,4 @@
-﻿namespace ExtendedExile
+﻿namespace ExtendedExile.Utils
 {
     public static class ExtendedExileEvents
     {
