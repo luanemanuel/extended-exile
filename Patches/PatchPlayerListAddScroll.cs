@@ -10,7 +10,6 @@ namespace ExtendedExile.Patches
         static void Postfix(VGUI_MenuInGame_PlayerList __instance)
         {
             // 1) pega o container original (ListPlayer)
-            //    você já tem um campo containerPlayers, mas se for privado:
             var fld = AccessTools.Field(typeof(VGUI_MenuInGame_PlayerList), "containerPlayers");
             var original = (Transform)fld.GetValue(__instance);
             if (original == null)
@@ -124,7 +123,7 @@ namespace ExtendedExile.Patches
             scrollRect.horizontal = false;
             scrollRect.movementType = ScrollRect.MovementType.Clamped;
 
-            // 7) redireciona container (passo 5 do patch original)
+            // 7) redireciona container
             original.gameObject.SetActive(false);
             fld.SetValue(__instance, contentRT);
         }
