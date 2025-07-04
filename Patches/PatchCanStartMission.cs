@@ -9,6 +9,12 @@ namespace ExtendedExile.Patches
     {
         static bool Prefix(UI_Lobby_State __instance, ref bool __result)
         {
+            if (ForceStartFlag.SkipAllReady)
+            {
+                __result = true;
+                return false;
+            }
+            
             var field = AccessTools.Field(typeof(UI_Lobby_State), "ƩńćŴǗ");
             var states = (int[])field.GetValue(__instance);
             int players = PhotonNetwork.CurrentRoom.PlayerCount;

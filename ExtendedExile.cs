@@ -40,6 +40,7 @@ namespace ExtendedExile
         {
             new GameObject("PatchPlayerListScroll").AddComponent<PatchPlayerListScroll>();
             new GameObject("PatchPlayerStatusScroll").AddComponent<PatchPlayerStatusScroll>();
+            new GameObject("PatchForceStartButton").AddComponent<PatchForceStartButton>();
         }
     }
 }
